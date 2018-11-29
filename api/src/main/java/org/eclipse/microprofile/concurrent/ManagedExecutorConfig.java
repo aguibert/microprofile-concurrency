@@ -28,28 +28,57 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 /**
- * <p>Provides configuration for an injected {@link ManagedExecutor} instance
- * which is {@link javax.enterprise.context.Dependent dependent} scoped.
- * When an application has multiple injection points for {@link ManagedExecutor}
- * with matching configuration, the container injects the same instance.
- * For the purposes of matching, array attributes of this annotation are
- * considered as unordered sets where duplicate elements are ignored.</p>
- *
- * <p>Example usage:</p>
- * <pre><code> &commat;Inject &commat;ManagedExecutorConfig(propagated=ThreadContext.CDI, maxAsync=5)
- * ManagedExecutor executor;
- * ...
- * </code></pre>
- *
- * <p>All created instances of {@link ManagedExecutor} are destroyed
- * when the application is stopped. The container automatically shuts down these
- * managed executors and cancels their remaining actions/tasks.</p>
- *
- * <p>A {@link ManagedExecutor} must fail to inject, raising
- * {@link javax.enterprise.inject.spi.DeploymentException DeploymentException}
- * on application startup, if more than one provider provides the same thread context
- * {@link org.eclipse.microprofile.concurrent.spi.ThreadContextProvider#getThreadContextType type}.
- */
+* <p>Annotates a CDI injection point for a {@link ManagedExecutor} such that a new
+* instance is created, which is scoped within an application to its unique name.
+* The unique name is generated as the fully qualified class and field name of the
+* injection point, unless annotated with the {@link NamedExecutor} qualifier,
+* in which case the unique name is specified by the name field of that qualifier.</p>
+*
+* <p>For example, the following injection points share a single
+* {@link ManagedExecutor} instance,</p>
+*
+* <pre><code> &commat;Inject &commat;NamedExecutor("myExecutor") &commat;ManagedExecutorConfig(maxAsync=5)
+* ManagedExecutor exec1;
+*
+* &commat;Inject &commat;NamedExecutor("myExecutor")
+* ManagedExecutor exec2;
+*
+* &commat;Inject &commat;NamedExecutor("myExecutor")
+* ManagedExecutor exec3;
+* </code></pre>
+*
+* <p>Alternately, the following injection points each represent a distinct
+* {@link ManagedExecutor} instance,</p>
+*
+* <pre><code> &commat;Inject &commat;ManagedExecutorConfig(propagated=ThreadContext.CDI)
+* ManagedExecutor exec4;
+*
+* &commat;Inject &commat;ManagedExecutorConfig(maxAsync=5)
+* ManagedExecutor exec5;
+* </code></pre>
+*
+* <p>Example usage:</p>
+* <pre><code> &commat;Inject &commat;ManagedExecutorConfig(propagated=ThreadContext.CDI, maxAsync=5)
+* ManagedExecutor executor;
+* ...
+* </code></pre>
+*
+* <p>When the application stops, the container automatically shuts down instances
+* of {@link ManagedExecutor} that it created. The application can manually use the
+* {@link ManagedExecutor#shutdown} or {@link ManagedExecutor#shutdownNow} method
+* to shut down a managed executor at an earlier point.</p>
+*
+* <p>A <code>ManagedExecutor</code> must fail to inject, raising
+* {@link javax.enterprise.inject.spi.DefinitionException DefinitionException}
+* on application startup,
+* if multiple injection points that are annotated with <code>@ManagedExecutorConfig</code>
+* have the same name.</p>
+*
+* <p>A {@link ManagedExecutor} must fail to inject, raising
+* {@link javax.enterprise.inject.spi.DeploymentException DeploymentException}
+* on application startup, if more than one provider provides the same thread context
+* {@link org.eclipse.microprofile.concurrent.spi.ThreadContextProvider#getThreadContextType type}.
+*/
 @Retention(RUNTIME)
 @Target({ FIELD, METHOD, PARAMETER, TYPE })
 public @interface ManagedExecutorConfig {
@@ -140,4 +169,11 @@ public @interface ManagedExecutorConfig {
      * <code>maxQueued</code> value is 0 or less than -1.
      */
     int maxQueued() default -1;
+    
+    /**
+     * Assigns a name to this ManagedExecutor configuration. A name can be referenced
+     * using the {@link NamedExecutor} CDI qualifier to obtain the ManagedExecutor 
+     * instance  
+     */
+    String name() default "";
 }
